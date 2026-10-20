@@ -1,0 +1,19 @@
+{
+  "name": "firecube-pro",
+  "version": "1.0.0",
+  "description": "FireCube Pro - Cronômetro Oficial de Speedcubing WCA, Duelos & Gamificação",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "rubiks-cube",
+    "speedcubing",
+    "timer",
+    "wca",
+    "portainer",
+    "docker"
+  ],
+  "author": "Paulonho",
+  "license": "MIT"
+}

@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "id": "usr_1792450526249_414",
+      "username": "Paulonho",
+      "email": "paulohops@live.com",
+      "passwordHash": "5b3bdae1fa31c8ece799f6a764a7a0b7c7729e03e69b9167cf06cf1343908092",
+      "avatar": "🔥",
+      "avatarId": "fire",
+      "elo": 1000,
+      "level": 0,
+      "xp": 0,
+      "fireCoins": 0,
+      "duelsWon": 0,
+      "duelsLost": 0,
+      "activeSkin": "default",
+      "unlockedSkins": [
+        "default"
+      ],
+      "createdAt": "19/10/2026"
+    }
+  ],
+  "solves": []
+}
