@@ -19,20 +19,14 @@ services:
       - traefik-net
     labels:
       - "traefik.enable=true"
-
-      # 1. Redirecionamento HTTP -> HTTPS
       - "traefik.http.routers.firecube-http.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
       - "traefik.http.routers.firecube-http.entrypoints=web"
       - "traefik.http.routers.firecube-http.middlewares=firecube-redirect"
       - "traefik.http.middlewares.firecube-redirect.redirectscheme.scheme=https"
-
-      # 2. Roteador HTTPS com SSL automático (Let's Encrypt)
       - "traefik.http.routers.firecube.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
       - "traefik.http.routers.firecube.entrypoints=websecure"
       - "traefik.http.routers.firecube.tls=true"
       - "traefik.http.routers.firecube.tls.certresolver=letsencrypt"
-
-      # 3. Porta interna da aplicação
       - "traefik.http.services.firecube.loadbalancer.server.port=8080"
 
 volumes:
@@ -41,4 +35,5 @@ volumes:
 
 networks:
   traefik-net:
+    name: traefik-net
     external: true
