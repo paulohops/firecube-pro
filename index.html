@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FireCube Pro | Cronômetro de Speedcubing, Duelos & Gamificação</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+  
+  <!-- CSS Styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- PeerJS (WebRTC P2P Multiplayer), Three.js & Chart.js CDNs -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="theme-dark">
+
+  <!-- ==================== HEADER COM GAMIFICAÇÃO & NAVEGAÇÃO ==================== -->
+  <header class="app-header">
+    <div class="brand-wrap" onclick="location.reload()">
+      <span class="brand-fire-logo">🔥</span>
+      <h1 class="brand-title">FireCube Pro</h1>
+      <span class="brand-badge">WCA & Gaming</span>
+    </div>
+
+    <!-- Navegação de Abas / Modos de Jogo -->
+    <nav class="nav-view-container">
+      <button id="nav-btn-timer" class="nav-view-btn active" onclick="app.switchView('timer')">
+        <span>⏱️ Treino Livre</span>
+      </button>
+      <button id="nav-btn-bot-duel" class="nav-view-btn" onclick="app.switchView('bot-duel')">
+        <span>⚔️ Duelo Bot</span>
+      </button>
+      <button id="nav-btn-evolution" class="nav-view-btn" onclick="app.switchView('evolution')">
+        <span>📈 Evolução & Gráficos</span>
+      </button>
+    </nav>
+
+    <!-- Perfil do Jogador (Login & Database Status) -->
+    <div class="user-profile-header" onclick="app.openAuthModal()" title="Clique para fazer login, criar conta ou ver seu perfil">
+      <span class="user-avatar-circle" id="user-header-avatar">🔥</span>
+      <span class="user-name-text" id="user-header-name">Visitante</span>
+      <span class="user-level-pill" id="user-header-level">Nív. 1</span>
+      <span class="user-coins-pill" id="user-header-coins">100 🔥</span>
+      <span class="user-elo-pill" id="user-header-elo">1000 Elo</span>
+      <span class="user-status-pill status-guest" id="user-header-status-pill">Visitante</span>
+    </div>
+
+    <!-- Ações do Cabeçalho -->
+    <div class="header-actions">
+      <div class="streak-header-pill" onclick="gamification.openClubedexModal()" title="Seu Streak diário no Codédex Club (Clique para abrir seu Passaporte)">
+        🔥 <span id="header-streak-count">1</span>D
+      </div>
+      <button class="btn-icon-subtle btn-clubedex-nav" onclick="gamification.openClubedexModal()" title="Passaporte & Missões do Codédex Club">
+        <span>👾 Clubédex</span>
+      </button>
+      <button class="btn-icon-subtle" onclick="app.openPvPModal()" title="Criar ou entrar em sala com link multiplayer">
+        <span>🌐 1v1</span>
+      </button>
+      <button class="btn-icon-subtle" onclick="app.openLeaderboardModal()" title="Ver Ranking Global e Divisões">
+        <span>🏆 Ranking</span>
+      </button>
+      <button class="btn-icon-subtle" onclick="app.openStoreModal()" title="Loja de Skins para o Cubo 3D">
+        <span>🛒 Loja 3D</span>
+      </button>
+      <button id="btn-toggle-theme" class="btn-icon-subtle" onclick="app.toggleTheme()" title="Alternar Tema (Dark / Light)">
+        <span>🌓 Tema</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+  <main class="main-layout">
+
+    <!-- ==================== VIEW 1: CRONÔMETRO DE TREINO LIVRE ==================== -->
+    <div id="view-timer" class="app-view-panel">
+
+      <!-- UPPER STAGE: TIMER HERO + 3D CUBE VIEWER -->
+      <section class="upper-stage">
+        
+        <!-- Timer Area -->
+        <div class="timer-hero-card" id="timer-display-area" title="Segure a barra de espaço para cronometrar">
+          <div class="timer-instructions-corner">
+            Treine speedcubing.<br>
+            Segure a barra de espaço até ficar verde e solte para cronometrar.<br>
+            Com gerador oficial WCA.
+          </div>
+
+          <div class="timer-container">
+            <div class="timer-display" id="timer-digital">0:00.00</div>
+          </div>
+
+          <div class="timer-hint-bar">
+            <span>Pressione e segure</span>
+            <span class="kbd-badge">ESPAÇO</span>
+            <span>(ou toque na tela) até ficar verde</span>
+          </div>
+        </div>
+
+        <!-- 3D Cube Preview Card -->
+        <div class="cube-preview-card">
+          <div class="cube-card-header">
+            <div class="cube-title-wrap">
+              <span>🧊</span>
+              <span>Visão do Cubo</span>
+            </div>
+            <div class="cube-view-toggles">
+              <button id="btn-view-3d" class="btn-toggle-view active">3D</button>
+              <button id="btn-view-2d" class="btn-toggle-view">Plano 2D</button>
+            </div>
+          </div>
+
+          <div class="cube-canvas-wrapper" id="cube-wrapper">
+            <div id="cube3d-canvas"></div>
+            <div id="cube-net-container"></div>
+          </div>
+
+          <div class="cube-card-footer">
+            <button id="btn-reset-cam" class="btn-action-small" title="Centralizar visualização 3D">
+              <span>🎯 Reset Câmera</span>
+            </button>
+            <button id="btn-view-solution" class="btn-action-small" title="Ver solução matemática passo a passo">
+              <span>💡 Ver Solução</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- SCRAMBLE SHOWCASE STRIP COM DICAS E GUIA VISUAL -->
+      <section class="scramble-showcase-box">
+        <div class="scramble-showcase-top">
+          <div class="scramble-banner-header">
+            <span class="scramble-title-label">EMBARALHAMENTO:</span>
+            <!-- Container pill com contraste e fonte mono -->
+            <div class="scramble-pill-container" id="scramble-text">
+              U2 L F2 D' R2 U' D F L2 D F2 R D U B D L' U R' U2 D
+            </div>
+          </div>
+
+          <div class="scramble-actions-row">
+            <button id="btn-scramble-tips" class="btn-action-special" onclick="app.openScrambleTipsModal()" title="Dicas e planejamento para este embaralhamento">
+              <span>💡 Dicas de Montagem</span>
+            </button>
+            <button id="btn-visual-guide" class="btn-action-special btn-guide-highlight" onclick="app.openVisualGuideModal()" title="Guia visual ilustrado passo a passo com fotos e algoritmos">
+              <span>📖 Como Resolver</span>
+            </button>
+            <button id="btn-copy-scramble" class="btn-secondary-action" title="Copiar embaralhamento">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copiar</span>
+            </button>
+            <button id="btn-new-scramble" class="btn-primary-action" title="Gerar novo embaralhamento (Alt+N)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Novo Embaralhamento</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Prominent Move Cards Strip Matching Screenshot -->
+        <div class="scramble-cards-strip" id="scramble-visual-cards">
+          <!-- Rendered by ScrambleEngine with white tiles and dark red arrows -->
+        </div>
+      </section>
+
+      <!-- LOWER DASHBOARD: 3 CARDS (SOLVES, STATS, OPTIONS & BENCHMARKS) -->
+      <section class="dashboard-grid">
+
+        <!-- 1. REGISTRO DE TEMPOS (SOLVES LIST) -->
+        <div class="panel-card solves-panel">
+          <div class="card-header-row">
+            <div class="card-title-wrap">
+              <span>⏱️</span>
+              <span>Histórico de Solves</span>
+              <span class="count-pill" id="solves-count">0</span>
+            </div>
+            <button id="btn-export-session" class="btn-action-small" title="Exportar tempos da sessão">
+              <span>Exportar</span>
+            </button>
+          </div>
+
+          <div class="solves-list-container" id="solves-list-body">
+            <!-- Solves rows injected here -->
+          </div>
+
+          <div class="solves-card-footer">
+            <button id="btn-clear-session" class="btn-action-small" style="color: #ef4444;" title="Apagar todos os tempos">
+              <span>Limpar Sessão</span>
+            </button>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Clique no tempo p/ ver detalhes</span>
+          </div>
+        </div>
+
+        <!-- 2. ESTATÍSTICAS DETALHADAS -->
+        <div class="panel-card stats-panel">
+          <div class="card-header-row">
+            <div class="card-title-wrap">
+              <span>📊</span>
+              <span>Estatísticas da Sessão</span>
+            </div>
+          </div>
+
+          <div class="stats-table">
+            <div class="stat-row">
+              <span class="stat-label">Melhor:</span>
+              <span class="stat-val" id="stat-best">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Pior:</span>
+              <span class="stat-val" id="stat-worst">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Média:</span>
+              <span class="stat-val" id="stat-mean">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Mediana:</span>
+              <span class="stat-val" id="stat-median">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Desvio:</span>
+              <span class="stat-val" id="stat-stddev">--:--</span>
+            </div>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-row">
+              <span class="stat-label">Média 5:</span>
+              <span class="stat-val" id="stat-ao5">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">3 de 5:</span>
+              <span class="stat-val" id="stat-middle5">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Melhor 3/5:</span>
+              <span class="stat-val" id="stat-best-ao5">--:--</span>
+            </div>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-row">
+              <span class="stat-label">Média 12:</span>
+              <span class="stat-val" id="stat-ao12">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">10 de 12:</span>
+              <span class="stat-val" id="stat-middle12">--:--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Melhor 10/12:</span>
+              <span class="stat-val" id="stat-best-ao12">--:--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. CONFIGURAÇÕES & NÍVEIS DE TEMPO -->
+        <div class="panel-card options-panel">
+          <div class="card-header-row">
+            <div class="card-title-wrap">
+              <span>⚙️</span>
+              <span>Opções & Nível</span>
+            </div>
+          </div>
+
+          <div class="options-group">
+            <label class="custom-checkbox-label">
+              <input type="checkbox" id="cb-inspection" checked>
+              <span>Inspeção (15s WCA)</span>
+            </label>
+            <label class="custom-checkbox-label">
+              <input type="checkbox" id="cb-sound" checked>
+              <span>Sons</span>
+            </label>
+            <label class="custom-checkbox-label">
+              <input type="checkbox" id="cb-auto-scramble" checked>
+              <span>Embaralhar após solve</span>
+            </label>
+          </div>
+
+          <div class="stat-divider"></div>
+
+          <div class="level-benchmark-box">
+            <div class="level-badge-header">
+              <span class="rank-badge" id="user-rank-badge">🟢 Iniciante</span>
+              <span class="tier-title" id="user-tier-name">Camada por Camada</span>
+            </div>
+
+            <div class="progress-track" title="Progresso para o próximo nível">
+              <div class="progress-fill" id="level-progress-fill"></div>
+            </div>
+
+            <div class="progress-info-text" id="level-progress-text">
+              Calculando com base no seu Ao5...
+            </div>
+
+            <div class="level-tip-text" id="user-level-tip">
+              Treine para não parar entre os passos.
+            </div>
+
+            <button id="btn-view-benchmarks" class="btn-action-small" style="justify-content: center; margin-top: 4px;">
+              <span>📈 Ver Tabela Completa de Níveis</span>
+            </button>
+          </div>
+
+        </div>
+
+      </section>
+    </div>
+
+    <!-- ==================== VIEW 2: PÁGINA ESPECÍFICA DE DUELO CONTRA BOT ==================== -->
+    <div id="view-bot-duel" class="app-view-panel" style="display: none;">
+      
+      <!-- Seletor de Dificuldade do Bot -->
+      <section class="bot-duel-selector-banner">
+        <div class="bot-selector-header">
+          <div>
+            <h2 class="bot-view-title">⚔️ Arena de Duelo contra Bot</h2>
+            <p class="bot-view-subtitle">Escolha o nível do Bot IA, verifique o embaralhamento e solte a barra de espaço. O robô só começa a resolver no exato instante em que seu cronômetro iniciar!</p>
+          </div>
+          <button class="btn-secondary-action" onclick="app.newScramble()">
+            <span>🔄 Novo Embaralhamento</span>
+          </button>
+        </div>
+
+        <div class="bot-tier-selector-pills">
+          <button class="btn-bot-tier" data-bot="bot_beginner" onclick="duelArena.setBotDifficulty('bot_beginner')">
+            <span class="bot-pill-avatar">🤖</span>
+            <div class="bot-pill-info">
+              <strong>Cubinho Bot</strong>
+              <small>Iniciante · ~1m 40s (1.1 TPS)</small>
+            </div>
+          </button>
+
+          <button class="btn-bot-tier active" data-bot="bot_intermediate" onclick="duelArena.setBotDifficulty('bot_intermediate')">
+            <span class="bot-pill-avatar">⚡</span>
+            <div class="bot-pill-info">
+              <strong>AlgoBot Pro</strong>
+              <small>Intermediário · ~42s (2.4 TPS)</small>
+            </div>
+          </button>
+
+          <button class="btn-bot-tier" data-bot="bot_advanced" onclick="duelArena.setBotDifficulty('bot_advanced')">
+            <span class="bot-pill-avatar">🌪️</span>
+            <div class="bot-pill-info">
+              <strong>SpeedBot 3000</strong>
+              <small>Avançado · ~20.5s (4.5 TPS)</small>
+            </div>
+          </button>
+
+          <button class="btn-bot-tier" data-bot="bot_legend" onclick="duelArena.setBotDifficulty('bot_legend')">
+            <span class="bot-pill-avatar">👑</span>
+            <div class="bot-pill-info">
+              <strong>YihengBot AI 🔥</strong>
+              <small>WCA Elite · ~8.8s (8.5 TPS)</small>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Embaralhamento do Duelo -->
+      <section class="duel-scramble-bar">
+        <span class="duel-scramble-tag">EMBARALHAMENTO DO DUELO:</span>
+        <div class="duel-scramble-display" id="duel-bot-scramble-text">
+          U2 L F2 D' R2 U' D F L2 D F2 R D U B D L' U R' U2 D
+        </div>
+      </section>
+
+      <!-- Split Arena: Você vs Robô 3D -->
+      <section class="duel-split-arena">
+        
+        <!-- Lado do Jogador -->
+        <div class="duel-side-card duel-player-side-card" id="duel-user-timer-card">
+          <div class="duel-card-header">
+            <div class="duel-profile-chip">
+              <span class="duel-avatar-circle" id="duel-user-avatar">🔥</span>
+              <div>
+                <h3 id="duel-user-name">Você</h3>
+                <span class="duel-badge-chip">Desafiante</span>
+              </div>
+            </div>
+            <span class="duel-status-badge duel-status-waiting">🟡 Aguardando seu disparo</span>
+          </div>
+
+          <div class="duel-timer-box">
+            <div class="duel-timer-digits" id="duel-user-timer-display">0:00.00</div>
+          </div>
+
+          <div class="duel-action-prompt">
+            <span class="duel-fire-icon">🔥</span>
+            <span>Segure a barra de <strong>ESPAÇO</strong> (ou toque aqui) até ficar verde e solte para largar!</span>
+          </div>
+
+          <div class="duel-rules-footer">
+            <span>Ambos jogam o mesmo embaralhamento. Quem finalizar primeiro vence o duelo!</span>
+          </div>
+        </div>
+
+        <!-- Lado do Bot com Cubo 3D Animado -->
+        <div class="duel-side-card duel-bot-side-card">
+          <div class="duel-card-header">
+            <div class="duel-profile-chip">
+              <span class="duel-avatar-circle" id="duel-bot-avatar">⚡</span>
+              <div>
+                <h3 id="duel-bot-name">AlgoBot Pro</h3>
+                <span class="duel-elo-tag" id="duel-bot-elo">1250 Elo</span>
+              </div>
+            </div>
+            <span class="duel-status-badge duel-status-waiting" id="duel-bot-status-badge">🟡 Aguardando largada...</span>
+          </div>
+
+          <div class="duel-bot-progress-box">
+            <div class="duel-bot-progress-labels">
+              <span id="duel-bot-phase-label">Cruz Branca ✝️</span>
+              <span class="duel-bot-time-text" id="duel-bot-timer-display">0:00.00</span>
+            </div>
+            <div class="duel-bot-progress-track">
+              <div class="duel-bot-progress-fill" id="duel-bot-progress-fill"></div>
+            </div>
+          </div>
+
+          <!-- Visualização 3D do Cubo do Bot -->
+          <div class="bot-cube3d-container-wrap">
+            <div class="bot-cube3d-badge">Visão 3D do Robô em Tempo Real</div>
+            <div id="bot-cube3d-canvas"></div>
+          </div>
+
+          <div class="duel-bot-desc-box" id="duel-bot-desc">
+            CFOP Reduzido (4-Look LL) · Média ~42s (2.4 TPS)
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Recompensas do Duelo -->
+      <section class="duel-rewards-banner">
+        <span>🏆 <strong>Recompensas de Vitória:</strong> +25 Elo no Ranking · +130 XP · +40 Moedas de Fogo 🔥</span>
+        <span>💀 <strong>Derrota:</strong> -10 Elo · +25 XP de consolação</span>
+      </section>
+
+    </div>
+
+    <!-- ==================== VIEW 3: PÁGINA DE EVOLUÇÃO & GRÁFICOS ==================== -->
+    <div id="view-evolution" class="app-view-panel" style="display: none;">
+      
+      <section class="evolution-page-header">
+        <div>
+          <h2 class="bot-view-title">📈 Painel de Evolução & Análise de Velocidade</h2>
+          <p class="bot-view-subtitle">Acompanhe seu progresso histórico, curva de médias WCA, estabilidade de giros e dicas personalizadas para reduzir seu tempo.</p>
+        </div>
+        <button class="btn-action-small" onclick="if(window.evolutionTracker && window.app) { window.evolutionTracker.renderChart(window.app.solves); window.evolutionTracker.updateMetricsUI(window.app.solves); }">
+          <span>🔄 Atualizar Gráfico</span>
+        </button>
+      </section>
+
+      <!-- Gráfico Principal de Tempos (Chart.js) -->
+      <section class="evolution-chart-card">
+        <div class="chart-header-row">
+          <div class="chart-title-wrap">
+            <span>📊</span>
+            <h3>Curva de Desempenho e Médias Móveis</h3>
+          </div>
+          <div class="chart-legend-chips">
+            <span class="legend-chip chip-raw">● Tempo Bruto</span>
+            <span class="legend-chip chip-ao5">-- Média de 5 (Ao5)</span>
+            <span class="legend-chip chip-pb">-- Recorde Pessoal (PB)</span>
+          </div>
+        </div>
+
+        <div class="chart-canvas-box">
+          <canvas id="solves-chart-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- Grid de Métricas Avançadas -->
+      <section class="evolution-metrics-grid">
+        
+        <!-- 1. Consistência -->
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-icon">🎯</span>
+            <h4>Índice de Consistência</h4>
+          </div>
+          <div class="metric-main-value" id="metric-consistency">82%</div>
+          <p class="metric-subtext">Mede o quão estáveis e próximos da média são seus tempos (baixo desvio padrão).</p>
+        </div>
+
+        <!-- 2. TPS Estimado -->
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-icon">⚡</span>
+            <h4>Velocidade de Giro (TPS)</h4>
+          </div>
+          <div class="metric-main-value" id="metric-tps">1.82 voltas/s</div>
+          <p class="metric-subtext">Estimativa de giros por segundo considerando resolução média de 56 movimentos.</p>
+        </div>
+
+        <!-- 3. Distribuição de Solves -->
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-icon">📊</span>
+            <h4>Distribuição por Metas</h4>
+          </div>
+          <div class="subx-bars-container">
+            <div class="subx-row">
+              <span>Sub-60s</span>
+              <div class="subx-track"><div class="subx-fill" id="metric-sub60-bar" style="width: 70%;"></div></div>
+            </div>
+            <div class="subx-row">
+              <span>Sub-30s</span>
+              <div class="subx-track"><div class="subx-fill" id="metric-sub30-bar" style="width: 30%;"></div></div>
+            </div>
+            <div class="subx-row">
+              <span>Sub-20s</span>
+              <div class="subx-track"><div class="subx-fill" id="metric-sub20-bar" style="width: 10%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Fases CFOP -->
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-icon">⏱️</span>
+            <h4>Estimativa por Etapas</h4>
+          </div>
+          <div class="phases-breakdown-grid">
+            <div class="phase-chip">
+              <small>Cruz (12%)</small>
+              <strong id="phase-cross-time">3.5s</strong>
+            </div>
+            <div class="phase-chip">
+              <small>F2L (50%)</small>
+              <strong id="phase-f2l-time">14.8s</strong>
+            </div>
+            <div class="phase-chip">
+              <small>OLL (16%)</small>
+              <strong id="phase-oll-time">4.7s</strong>
+            </div>
+            <div class="phase-chip">
+              <small>PLL (22%)</small>
+              <strong id="phase-pll-time">6.5s</strong>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Diagnóstico Personalizado e Dicas para Reduzir Tempo -->
+      <section class="evolution-roadmap-section">
+        <div class="metric-diagnosis-card" id="metric-diagnosis-box">
+          <h4>🎯 Diagnóstico do seu Nível Atual</h4>
+          <p>Complete mais resoluções para gerar um diagnóstico cirúrgico da sua transição de etapas!</p>
+        </div>
+
+        <div class="roadmap-grid">
+          <div class="roadmap-card">
+            <div class="roadmap-step-badge">Passo 1</div>
+            <h4>Cruz Branca em menos de 8 movimentos</h4>
+            <p>Use os 15 segundos inteiros da inspeção para planejar as 4 peças de meio. Monte a cruz com o centro branco voltado para baixo (D) para economizar a rotação do cubo.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="roadmap-step-badge">Passo 2</div>
+            <h4>Elimine as pausas no F2L (Lookahead)</h4>
+            <p>O F2L representa 50% de todo o seu tempo. Gire o cubo com velocidade constante em vez de dar explosões rápidas e parar para procurar as peças.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="roadmap-step-badge">Passo 3</div>
+            <h4>Domine o 4-Look Last Layer</h4>
+            <p>Antes de decorar os 57 casos de OLL e 21 de PLL, use apenas 9 algoritmos essenciais (2-Look OLL para cruz amarela e cantos, 2-Look PLL para cantos e meios).</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="roadmap-step-badge">Passo 4</div>
+            <h4>Finger Tricks & Treino sem Timer</h4>
+            <p>Nunca gire as faces U ou D usando a mão inteira. Acostume o dedo indicador para giros simples U e dedo indicador + anelar para puxada dupla U2.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ==================== MODAL: DICAS DE MONTAGEM ==================== -->
+  <div class="app-modal" id="scramble-tips-modal">
+    <div class="modal-content-card" style="max-width: 680px;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>💡</span>
+          <h3 class="modal-title">Dicas de Montagem & Inspeção</h3>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('scramble-tips-modal')">&times;</button>
+      </div>
+
+      <div class="tips-body-content">
+        <div class="tip-highlight-box">
+          <h4>🎯 Como planejar a Cruz nos 15s de Inspeção</h4>
+          <p>Em competições oficiais WCA você tem 15 segundos antes de soltar o cronômetro. Use esse tempo para inspecionar onde estão as 4 peças da cruz branca (ou amarela). Qualquer cruz no mundo pode ser resolvida em no <strong>máximo 8 movimentos</strong>.</p>
+        </div>
+
+        <div class="tip-section-block">
+          <h4>Notação dos Movimentos Oficiais WCA:</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+            Letras simples giram 90° no sentido horário. Letras com apóstrofo (') giram 90° no sentido anti-horário. O número 2 indica giro duplo (180°).
+          </p>
+          <div class="guide-diagram-container" style="text-align: center;">
+            <img src="img/face-rotations.png" alt="Notação e rotações dos movimentos do cubo" class="guide-img-fluid" style="max-height: 220px; border-radius: var(--radius-md); border: 1px solid var(--border-divider);">
+          </div>
+        </div>
+
+        <div class="tips-grid-2col">
+          <div class="tip-mini-card">
+            <strong>1. Monte a Cruz embaixo (Face D):</strong>
+            <p>Nunca monte a cruz em cima para depois virar o cubo. Montar embaixo permite já visualizar os pares de F2L no topo.</p>
+          </div>
+          <div class="tip-mini-card">
+            <strong>2. Regra dos 1 a 3 giros:</strong>
+            <p>Procure se há alguma peça de meio branco que já possa ser inserida em 1 único giro (ex: F, R ou L).</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+        <button class="btn-primary-action" onclick="app.closeModal('scramble-tips-modal')">Entendido! Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: GUIA VISUAL ILUSTRADO (ONLINE CUBE) ==================== -->
+  <div class="app-modal" id="visual-guide-modal">
+    <div class="modal-content-card" style="max-width: 860px; max-height: 90vh;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>📖</span>
+          <h3 class="modal-title">Guia Visual: Como Resolver o Cubo Mágico</h3>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('visual-guide-modal')">&times;</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        Tutorial completo camada por camada com ilustrações oficiais para você resolver qualquer cubo mágico de forma visual e intuitiva.
+      </p>
+
+      <div class="visual-guide-scroll-list">
+        
+        <!-- Passo 1 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 1</div>
+          <div class="guide-step-info">
+            <h4>A Cruz Branca no Topo</h4>
+            <p>Comece localizando o centro branco. Forme uma cruz branca mantendo as laterais de cada meio combinando perfeitamente com os centros adjacentes (verde com verde, vermelho com vermelho, etc.).</p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/ok-bad-white-edges.png" alt="Cruz Branca Certa vs Errada">
+                <figcaption>Cruz Correta vs Alinhamento Incorreto</figcaption>
+              </figure>
+              <figure>
+                <img src="img/insert-first-edge.png" alt="Inserção de peça de meio">
+                <figcaption>Inserindo peças de meio na cruz</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 2 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 2</div>
+          <div class="guide-step-info">
+            <h4>Cantos Brancos (Primeira Camada Completa)</h4>
+            <p>Posicione cada quina branca embaixo de onde ela deve entrar e use o algoritmo simples <code>R' D' R D</code> de 1 a 5 vezes até o canto subir orientado.</p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/cube-white-corners.png" alt="Cantos brancos">
+                <figcaption>Localizando cantos com branco</figcaption>
+              </figure>
+              <figure>
+                <img src="img/solved-white.png" alt="Primeira camada resolvida">
+                <figcaption>Primeira camada 100% finalizada</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 3 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 3</div>
+          <div class="guide-step-info">
+            <h4>Segunda Camada (Meios Centrais)</h4>
+            <p>Vire o cubo com a face branca para baixo. Identifique meios no topo que não tenham amarelo e insira-os na lateral usando:<br>
+            • Inserir na Direita: <code>U R U' R' U' F' U F</code><br>
+            • Inserir na Esquerda: <code>U' L' U L U F U' F'</code></p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/center-layer.png" alt="Peças da camada do meio">
+                <figcaption>Inserindo meios na camada do meio</figcaption>
+              </figure>
+              <figure>
+                <img src="img/solved-center.png" alt="Duas camadas finalizadas">
+                <figcaption>Duas camadas concluídas</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 4 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 4</div>
+          <div class="guide-step-info">
+            <h4>A Cruz Amarela no Topo</h4>
+            <p>No topo amarelo, você terá um Ponto, um 'L' ou uma Linha. Aplique a sequência mágica:<br>
+            <strong class="guide-algo-box">F R U R' U' F'</strong><br>
+            Repita 1 a 3 vezes até formar a cruz amarela no topo.</p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/how-to-solve-rubiks-cube.png" alt="Cruz Amarela Superior">
+                <figcaption>Ponto ➔ 'L' ➔ Linha ➔ Cruz Amarela</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 5 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 5</div>
+          <div class="guide-step-info">
+            <h4>Alinhar os Meios da Cruz Amarela</h4>
+            <p>Gire o topo para combinar o máximo de meios com suas laterais. Para permutar meios adjacentes use o algoritmo Sune:<br>
+            <strong class="guide-algo-box">R U R' U R U2 R'</strong></p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/swap-yellow-edges.png" alt="Trocar meios amarelos">
+                <figcaption>Trocando meios da face superior</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 6 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 6</div>
+          <div class="guide-step-info">
+            <h4>Posicionar os Cantos Amarelos</h4>
+            <p>Encontre um canto que esteja no lugar correto (mesmo com cores giradas). Segure-o na frente direita e faça:<br>
+            <strong class="guide-algo-box">U R U' L' U R' U' L</strong><br>
+            Isso ciclará os outros 3 cantos até todos estarem nos seus devidos lugares.</p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/cycle-rubiks-cube-algorithm.png" alt="Ciclar cantos amarelos">
+                <figcaption>Ciclagem de cantos do último andar</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 7 -->
+        <div class="guide-step-card">
+          <div class="guide-step-num">Passo 7</div>
+          <div class="guide-step-info">
+            <h4>Orientar Cantos Finais (Resolver o Cubo!)</h4>
+            <p>Com cantos nos lugares certos, posicione o canto não resolvido na frente-direita e repita:<br>
+            <strong class="guide-algo-box">R' D' R D</strong><br>
+            Quando o amarelo subir, gire APENAS a camada superior (U) para trazer o próximo canto e repita até resolver 100%!</p>
+            <div class="guide-images-row">
+              <figure>
+                <img src="img/rotate-final-pieces.png" alt="Orientar cantos finais">
+                <figcaption>Última rotação de cantos e resolução!</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+        <button class="btn-primary-action" onclick="app.closeModal('visual-guide-modal')">Fechar Guia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: AUTENTICAÇÃO & BANCO DE DADOS ==================== -->
+  <div class="app-modal" id="auth-modal">
+    <div class="modal-content-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>🔥</span>
+          <h3 class="modal-title">Central de Conta FireCube</h3>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('auth-modal')">&times;</button>
+      </div>
+
+      <!-- Caixa de Status da Conta Atual -->
+      <div id="auth-current-profile-box" style="margin-bottom: 12px;"></div>
+
+      <!-- Abas de Login e Cadastro -->
+      <div class="auth-tabs-row">
+        <button id="auth-tab-btn-login" class="auth-tab-btn active" onclick="app.switchAuthTab('login')">Entrar na Conta</button>
+        <button id="auth-tab-btn-register" class="auth-tab-btn" onclick="app.switchAuthTab('register')">Criar Nova Conta</button>
+      </div>
+
+      <!-- Painel de Login -->
+      <div id="auth-panel-login">
+        <div class="auth-form-group">
+          <label>USUÁRIO OU EMAIL:</label>
+          <input type="text" id="login-ident-input" class="login-input-field" placeholder="Ex: seu_usuario ou email@exemplo.com">
+        </div>
+        <div class="auth-form-group">
+          <label>SENHA:</label>
+          <input type="password" id="login-pass-input" class="login-input-field" placeholder="••••••••">
+        </div>
+        <div id="login-error-msg" class="auth-error-text"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+          <button class="btn-secondary-action" onclick="app.closeModal('auth-modal')">Cancelar</button>
+          <button class="btn-primary-action" onclick="app.submitLogin()">Entrar</button>
+        </div>
+      </div>
+
+      <!-- Painel de Registro -->
+      <div id="auth-panel-register" style="display: none;">
+        <div class="auth-form-group">
+          <label>NOME DE USUÁRIO (NICKNAME):</label>
+          <input type="text" id="reg-user-input" class="login-input-field" placeholder="Ex: FireMaster_WCA" maxlength="18">
+        </div>
+        <div class="auth-form-group">
+          <label>EMAIL (OPCIONAL):</label>
+          <input type="email" id="reg-email-input" class="login-input-field" placeholder="seuemail@exemplo.com">
+        </div>
+        <div class="auth-form-group">
+          <label>SENHA:</label>
+          <input type="password" id="reg-pass-input" class="login-input-field" placeholder="Mínimo 4 caracteres">
+        </div>
+        <div class="auth-form-group">
+          <label>ESCOLHA SEU AVATAR:</label>
+          <div class="avatar-selection-grid" id="register-avatar-selection"></div>
+        </div>
+        <div id="register-error-msg" class="auth-error-text"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+          <button class="btn-secondary-action" onclick="app.closeModal('auth-modal')">Cancelar</button>
+          <button class="btn-primary-action" onclick="app.submitRegister()">Criar Conta & Salvar no Banco</button>
+        </div>
+      </div>
+
+      <div class="db-guarantee-note">
+        💾 <strong>Persistência no Banco:</strong> Seus tempos, recordes, Elo e moedas são salvos no banco de dados SQLite/JSON da aplicação!
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: DUELO 1V1 MULTIPLAYER (LINK) ==================== -->
+  <div class="app-modal" id="duel-room-modal">
+    <div class="modal-content-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🌐 Sala de Duelo 1v1 Online</h3>
+        <button class="btn-close-modal" onclick="app.closeModal('duel-room-modal')">&times;</button>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-muted);" id="room-status-text">
+        Envie o link abaixo para seu amigo. Assim que ele abrir a página, vocês serão pareados no mesmo duelo!
+      </p>
+
+      <div>
+        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">LINK CONVITE DE DUELO:</label>
+        <div style="display: flex; gap: 8px; margin-top: 6px;">
+          <input type="text" id="room-link-input" class="login-input-field" readonly>
+          <button class="btn-primary-action" onclick="app.copyRoomLink()">Copiar Link</button>
+        </div>
+      </div>
+
+      <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.82rem; color: #f87171;">
+        💡 <strong>Como funciona:</strong> Vocês disputarão a mesma corrida com o mesmo embaralhamento. Quem finalizar a resolução em menor tempo leva a vitória e pontos de ranking!
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: RESULTADO DO DUELO ==================== -->
+  <div class="app-modal" id="duel-result-modal">
+    <div class="modal-content-card" style="max-width: 480px; text-align: center; align-items: center;">
+      <h2 id="duel-result-title" style="font-size: 1.8rem; font-weight: 900;">🏆 VITÓRIA!</h2>
+      <p id="duel-result-desc" style="font-size: 0.95rem; color: var(--text-muted);">Você finalizou o cubo mais rápido!</p>
+      
+      <div id="duel-result-rewards" style="display: flex; gap: 8px; justify-content: center; margin: 10px 0;"></div>
+
+      <button class="btn-primary-action" style="padding: 10px 24px; font-size: 1rem;" onclick="app.closeModal('duel-result-modal')">Continuar</button>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: LEVEL UP CELEBRATION ==================== -->
+  <div class="app-modal" id="levelup-modal">
+    <div class="modal-content-card" style="max-width: 460px; text-align: center; align-items: center;">
+      <span style="font-size: 3.5rem;">🎉</span>
+      <h2 style="font-size: 1.8rem; font-weight: 900; color: #f59e0b;">SUBIU DE NÍVEL!</h2>
+      <p style="font-size: 1.1rem; font-weight: 700;">Você atingiu o <span style="color: #ef4444;">Nível <span id="levelup-number">2</span></span>!</p>
+      
+      <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 10px 20px; border-radius: 9999px; font-weight: 800; color: #f59e0b; margin: 10px 0;">
+        +60 🔥 Moedas de Bônus!
+      </div>
+
+      <button class="btn-primary-action" style="padding: 8px 24px;" onclick="app.closeModal('levelup-modal')">Receber Recompensa</button>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: RANKING GLOBAL (LEADERBOARD) ==================== -->
+  <div class="app-modal" id="leaderboard-modal">
+    <div class="modal-content-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🏆 Ranking Global FireCube</h3>
+        <button class="btn-close-modal" onclick="app.closeModal('leaderboard-modal')">&times;</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Classificação competitiva por pontos de Elo e médias oficiais. Vença duelos para subir na tabela!
+      </p>
+
+      <div class="leaderboard-list-wrap" id="leaderboard-list"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: LOJA DE SKINS 3D ==================== -->
+  <div class="app-modal" id="store-modal">
+    <div class="modal-content-card" style="max-width: 760px;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>🛒</span>
+          <h3 class="modal-title">Loja de Skins para o Cubo 3D</h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-weight: 800; color: #f97316; font-size: 1rem;" id="store-user-coins">100 🔥</span>
+          <button class="btn-close-modal" onclick="app.closeModal('store-modal')">&times;</button>
+        </div>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Use suas moedas 🔥 conquistadas em resoluções e vitórias em duelos para desbloquear visuais exclusivos para o Cubo 3D!
+      </p>
+
+      <div class="store-skins-grid" id="store-skins-grid"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SOLUÇÃO PASSO A PASSO ==================== -->
+  <div class="app-modal" id="solution-modal">
+    <div class="modal-content-card">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>💡</span>
+          <h3 class="modal-title">Solução do Embaralhamento</h3>
+          <span class="count-pill" id="solution-total-moves">20 movimentos</span>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('solution-modal')">&times;</button>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-muted);">
+        Esta é a solução matemática exata para resolver o cubo a partir do embaralhamento atual, estruturada nas 4 etapas do método CFOP (Cruz, F2L, OLL, PLL).
+      </p>
+
+      <div class="solution-phases-list" id="solution-phases-container"></div>
+
+      <div>
+        <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 6px;">Sequência Completa de Movimentos:</h4>
+        <div class="solution-full-box" id="solution-full-sequence"></div>
+      </div>
+
+      <div class="solution-player-controls">
+        <button class="btn-secondary-action" onclick="app.resetCubeToScramble()">
+          <span>🔄 Resetar para Embaralhado</span>
+        </button>
+        <button class="btn-primary-action" id="btn-play-solution" onclick="app.playSolutionStepByStep()">
+          <span>▶️ Reproduzir Solução no Cubo 3D</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: BENCHMARKS ==================== -->
+  <div class="app-modal" id="benchmarks-modal">
+    <div class="modal-content-card" style="max-width: 760px;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span>🏆</span>
+          <h3 class="modal-title">Médias de Tempo por Nível (Speedcubing)</h3>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('benchmarks-modal')">&times;</button>
+      </div>
+
+      <div class="benchmarks-grid">
+        <div class="tier-detail-card tier-beginner">
+          <div class="tier-card-header">
+            <div class="tier-title-badge" style="color: #16a34a;">🟢 Nível Iniciante</div>
+            <span class="tier-time-pill">> 1m 30s (1:30 - 3:00+ min)</span>
+          </div>
+          <div class="tier-meta-grid">
+            <div><strong>Método:</strong> Camada por Camada (LBL)</div>
+            <div><strong>Movimentos:</strong> ~100 a 130</div>
+            <div><strong>Velocidade (TPS):</strong> 1.0 - 1.5 voltas/seg</div>
+            <div><strong>Próxima meta:</strong> Sub-1:15</div>
+          </div>
+        </div>
+
+        <div class="tier-detail-card tier-intermediate">
+          <div class="tier-card-header">
+            <div class="tier-title-badge" style="color: #ca8a04;">🟡 Nível Intermediário</div>
+            <span class="tier-time-pill">30s a 1m 15s (Sub-60 / Sub-45)</span>
+          </div>
+          <div class="tier-meta-grid">
+            <div><strong>Método:</strong> CFOP Reduzido (4-Look LL)</div>
+            <div><strong>Movimentos:</strong> ~65 a 85</div>
+            <div><strong>Velocidade (TPS):</strong> 2.0 - 3.5 voltas/seg</div>
+            <div><strong>Próxima meta:</strong> Avançado (Sub-30)</div>
+          </div>
+        </div>
+
+        <div class="tier-detail-card tier-advanced">
+          <div class="tier-card-header">
+            <div class="tier-title-badge" style="color: #ea580c;">🟠 Nível Avançado</div>
+            <span class="tier-time-pill">15s a 30s (Sub-30 / Sub-20)</span>
+          </div>
+          <div class="tier-meta-grid">
+            <div><strong>Método:</strong> CFOP Completo (Fridrich)</div>
+            <div><strong>Movimentos:</strong> ~50 a 60</div>
+            <div><strong>Velocidade (TPS):</strong> 4.0 - 6.0 voltas/seg</div>
+            <div><strong>Próxima meta:</strong> Expert / Pro (Sub-15)</div>
+          </div>
+        </div>
+
+        <div class="tier-detail-card tier-pro">
+          <div class="tier-card-header">
+            <div class="tier-title-badge" style="color: #9333ea;">🟣 Nível Expert / Pro</div>
+            <span class="tier-time-pill">< 15s (Sub-12, Sub-10, Sub-8)</span>
+          </div>
+          <div class="tier-meta-grid">
+            <div><strong>Método:</strong> Full CFOP + ZBLL / COLL / X-Cross</div>
+            <div><strong>Movimentos:</strong> ~45 a 55</div>
+            <div><strong>Velocidade (TPS):</strong> 7.0 a 12+ voltas/seg</div>
+            <div><strong>Recorde Mundial:</strong> ~3.13s (Max Park)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: DETALHES DO SOLVE ==================== -->
+  <div class="app-modal" id="solve-detail-modal">
+    <div class="modal-content-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-solve-num">Solve #1</h3>
+        <button class="btn-close-modal" onclick="app.closeModal('solve-detail-modal')">&times;</button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);" id="modal-solve-date">--</span>
+        <span style="font-family: var(--font-timer); font-size: 2.2rem; font-weight: 700; color: var(--accent-color);" id="modal-solve-time">--:--</span>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">EMBARALHAMENTO USADO:</label>
+        <div class="scramble-pill-container" id="modal-solve-scramble" style="margin-top: 4px; font-size: 0.95rem; white-space: normal;"></div>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">ANOTAÇÕES / FEEDBACK:</label>
+        <input type="text" id="modal-solve-notes" class="login-input-field" placeholder="Ex: F2L rápido, OLL em 2s, novo PB...">
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+        <button class="btn-secondary-action" id="btn-modal-load-scramble">
+          <span>🧊 Carregar no Cubo 3D</span>
+        </button>
+        <button class="btn-primary-action" onclick="app.closeModal('solve-detail-modal')">
+          <span>Fechar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CODÉDEX CLUB (CODEDEX.IO) ==================== -->
+  <div class="app-modal" id="clubedex-modal">
+    <div class="modal-content-card" style="max-width: 780px; max-height: 90vh;">
+      <div class="modal-header">
+        <div class="card-title-wrap">
+          <span style="font-size: 1.4rem;">👾</span>
+          <h3 class="modal-title">Codédex Club · Passaporte & Desafios</h3>
+        </div>
+        <button class="btn-close-modal" onclick="app.closeModal('clubedex-modal')">&times;</button>
+      </div>
+
+      <div style="overflow-y: auto; max-height: 75vh; padding-right: 6px;">
+        <!-- 1. Passaporte Oficial do Jogador -->
+        <div id="clubedex-passport-container"></div>
+
+        <!-- 2. Missões Diárias (Quests / Bounties) -->
+        <div style="margin-bottom: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+              <span>🎯</span> Missões Diárias do Clube
+            </h4>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">Resetam a cada 24 horas</span>
+          </div>
+          <div class="club-quests-container" id="clubedex-quests-list"></div>
+        </div>
+
+        <!-- 3. Mural de Pins Colecionáveis -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+              <span>🏅</span> Mural de Pins & Conquistas
+            </h4>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">Coleção Oficial Codédex</span>
+          </div>
+          <div class="clubedex-pins-grid" id="clubedex-pins-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="app-toast" id="app-toast">Aviso</div>
+
+  <!-- Application Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/gamification.js"></script>
+  <script src="js/duel.js"></script>
+  <script src="js/evolution.js"></script>
+  <script src="js/scramble.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/cube3d.js"></script>
+  <script src="js/solver.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
