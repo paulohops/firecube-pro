@@ -1,43 +1,44 @@
 version: '3.8'
 
 services:
-  firecube:
-    image: node:20-alpine
+  firecube-pro:
+    build: .
+    image: firecube-pro:latest
     container_name: firecube-pro
     restart: unless-stopped
-    working_dir: /app
+    ports:
+      - "8080:8080"
     environment:
       - PORT=8080
       - HOST=0.0.0.0
       - NODE_ENV=production
     volumes:
       - firecube_data:/app/data
-    command: sh -c "if [ ! -f /app/data/db.json ]; then mkdir -p /app/data && echo '{\"users\":[],\"solves\":[]}' > /app/data/db.json; fi && node server.js"
     networks:
       - default
-      - traefik-net  # <-- COLOQUE AQUI O NOME DA REDE DO SEU TRAEFIK
+      - traefik-net
     labels:
       - "traefik.enable=true"
 
-      # 1. Roteador HTTP -> Redireciona para HTTPS
-      - "traefik.http.routers.firecube-http.rule=Host(`cubo.paulonho.site`)"
+      # 1. Redirecionamento HTTP -> HTTPS
+      - "traefik.http.routers.firecube-http.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
       - "traefik.http.routers.firecube-http.entrypoints=web"
       - "traefik.http.routers.firecube-http.middlewares=firecube-redirect"
       - "traefik.http.middlewares.firecube-redirect.redirectscheme.scheme=https"
 
-      # 2. Roteador HTTPS seguro com Let's Encrypt
-      - "traefik.http.routers.firecube.rule=Host(`cubo.paulonho.site`)"
+      # 2. Roteador HTTPS com SSL automático (Let's Encrypt)
+      - "traefik.http.routers.firecube.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
       - "traefik.http.routers.firecube.entrypoints=websecure"
       - "traefik.http.routers.firecube.tls=true"
-      - "traefik.http.routers.firecube.tls.certresolver=letsencrypt"  # <-- Nome do certresolver configurado no seu Traefik
+      - "traefik.http.routers.firecube.tls.certresolver=letsencrypt"
 
       # 3. Porta interna da aplicação
       - "traefik.http.services.firecube.loadbalancer.server.port=8080"
 
 volumes:
   firecube_data:
-    name: firecube_data
+    driver: local
 
 networks:
-  	traefik-net:
-    external: true  # Conecta à rede já existente do Traefik
+  traefik-net:
+    external: true

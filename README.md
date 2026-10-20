@@ -53,7 +53,7 @@ Um ecossistema completo de Speedcubing gamificado para o navegador, com cronôme
 
 ## 🐳 Como Subir no Portainer (Deploy via Docker)
 
-O FireCube Pro já vem 100% preparado para ser implantado no **Portainer** através de **Stacks (Docker Compose)**.
+O FireCube Pro já vem 100% preparado para ser implantado no **Portainer** através de **Stacks (Docker Compose)** com integração nativa ao **Traefik**.
 
 ### Método 1: Portainer Stack via Repositório Git (Recomendado)
 
@@ -66,20 +66,64 @@ O FireCube Pro já vem 100% preparado para ser implantado no **Portainer** atrav
    - **Compose path**: `docker-compose.yml`
 4. *(Opcional)* Ative o **Automatic updates (Webhook)** se desejar que o Portainer atualize o container a cada push no GitHub.
 5. Clique em **Deploy the stack**.
-6. Acesse: `http://IP_DO_SERVIDOR:8080/`.
+6. Acesse: `https://firecube.paulonho.site` ou `https://cubo.paulonho.site` (ou via porta direta `http://IP_DO_SERVIDOR:8080/`).
 
 ---
 
-### Método 2: Portainer Stack via Web Editor (Copiar e Colar)
+### Método 2: Portainer Stack via Web Editor (Com Traefik e SSL)
 
 1. No Portainer, vá em **Stacks** ➔ **Add stack**.
 2. Escolha **Web editor**.
-3. Dê o nome de `firecube-pro` e cole o conteúdo do `docker-compose.yml`.
+3. Dê o nome de `firecube-pro` e cole o conteúdo do `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  firecube-pro:
+    build: .
+    image: firecube-pro:latest
+    container_name: firecube-pro
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+    volumes:
+      - firecube_data:/app/data
+    networks:
+      - default
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.firecube-http.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
+      - "traefik.http.routers.firecube-http.entrypoints=web"
+      - "traefik.http.routers.firecube-http.middlewares=firecube-redirect"
+      - "traefik.http.middlewares.firecube-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.firecube.rule=Host(`firecube.paulonho.site`) || Host(`cubo.paulonho.site`)"
+      - "traefik.http.routers.firecube.entrypoints=websecure"
+      - "traefik.http.routers.firecube.tls=true"
+      - "traefik.http.routers.firecube.tls.certresolver=letsencrypt"
+      - "traefik.http.services.firecube.loadbalancer.server.port=8080"
+
+volumes:
+  firecube_data:
+    driver: local
+
+networks:
+  traefik-net:
+    external: true
+```
+
 4. Clique em **Deploy the stack**.
 
 ---
 
 ### Método 3: Via Docker Compose (Linha de Comando)
+
+Se tiver acesso SSH ou terminal do servidor Docker:
 
 ```bash
 # Clonar o repositório
